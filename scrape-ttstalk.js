@@ -20,13 +20,22 @@ try {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
   const html = await response.text();
-  const match = html.match(
-    /<script[^>]*id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/
-  );
 
-  if (!match) throw new Error("Data profil tidak ditemukan.");
+  const scriptId = 'id="__UNIVERSAL_DATA_FOR_REHYDRATION__"';
+  const scriptPosition = html.indexOf(scriptId);
 
-  const root = JSON.parse(match[1]);
+  if (scriptPosition === -1) {
+    throw new Error("Data profil tidak ditemukan.");
+  }
+
+  const contentStart = html.indexOf(">", scriptPosition) + 1;
+  const contentEnd = html.indexOf("</script>", contentStart);
+
+  if (contentStart === 0 || contentEnd === -1) {
+    throw new Error("Data profil tidak ditemukan.");
+  }
+
+  const root = JSON.parse(html.slice(contentStart, contentEnd));
   const detail = root?.__DEFAULT_SCOPE__?.["webapp.user-detail"];
   const info = detail?.userInfo;
   const user = info?.user;
@@ -56,13 +65,12 @@ try {
     }]
   };
 
-  await fs.mkdir("results", { recursive: true });
-  await fs.writeFile(
-    `results/${username}.json`,
-    JSON.stringify(result, null, 2)
-  );
+  const output = JSON.stringify(result, null, 2);
 
-  console.log(JSON.stringify(result, null, 2));
+  await fs.mkdir("results", { recursive: true });
+  await fs.writeFile(`results/${username}.json`, output);
+
+  console.log(output);
   console.log(`Tersimpan: results/${username}.json`);
 
 } catch (error) {
